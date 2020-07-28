@@ -1,0 +1,225 @@
+
+
+    $app->get('/stock', function (Request $request, Response $response, array $args) {
+        $archivo = './files/producto.json';
+        $verifica = true;
+        //obtengo token
+        if ($token == '') {
+            // $response = new response();
+            $response->status = 'unsucces';
+            $response->data = 'error , token incorrecto';
+            // echo $response;
+            // $response->getBody()->write(json_encode($response));
+    }
+    else{
+        try {
+            //code...
+            $decoded = JWT::decode($token, $key, array('HS256'));
+            $verifica = true;
+            // print_r($decoded);
+        } catch (\Throwable $th) {
+            //throw $th;
+            $verifica = false;
+            $response->status = 'unsucces';
+            $response->data = 'error , token incorrecto';
+            // print_r($th);
+            // $response->getBody()->write(json_encode($response));
+        }
+    }
+    if($verifica == true)
+    {
+        $listaProd = funciones::Leer($archivo);
+        // $response = new response();
+        $response->status = 'succes';
+        $response->data = $listaProd;
+        // print_r(json_encode($response));
+        // $response->getBody()->write(json_encode($response));
+    }
+    else
+    {
+        $response->data = "Token no informado";
+        // $response->getBody()->write(json_encode($response));
+    }
+    $response->getBody()->write(json_encode($response));
+});
+
+// $app->get('/ventas', function (Request $request, Response $response, array $args) {
+    
+// });
+
+$app->post('/usuario', function (Request $request, Response $response, array $args) {
+    $archivo = './files/usuarios.json';
+    if(!empty($_POST))
+    {
+        // echo "POST con datos <br>";
+        if(isset($_POST['nombre'])&&isset($_POST['dni'])&&isset($_POST['obra_social'])&&isset($_POST['clave'])&&isset($_POST['tipo']))
+        {
+            // echo "datos OK <br>";
+            $nombre = $_POST['nombre'];
+            $dni = $_POST['dni'];
+            $os = $_POST['obra_social'];
+            $pass = $_POST['clave'];
+            $tipo = $_POST['tipo'];
+            // echo "usuario: $nombre apellido: $apellido , email: $email";
+            $cliente = new usuario($nombre, $dni, $os, $pass,  $tipo);
+            // echo "USER: <br>";
+            // var_dump($user);
+            // echo "<br>";
+            $respuesta = $cliente->guardarUsuario($archivo);
+            echo($respuesta);
+        }
+    }
+    else
+    {
+        echo "Error - Datos vacíos para realizar INSERT/UPDATE";
+    }
+});
+
+$app->post('/stock', function (Request $request, Response $response, array $args) {
+// echo "estoy en SIGNIN <br>";
+$archivo = './files/producto.json';
+$verifica = true;
+//obtengo token
+$headers = getallheaders();
+//verifico token
+$token = $headers['token'];
+if ($token == '') {
+    // $response = new Lresponse();
+    $response->status = 'unsucces';
+    $response->data = 'error , token incorrecto';
+    echo $response;
+}
+else{
+    try {
+        //code...
+        $decoded = JWT::decode($token, $key, array('HS256'));
+        if ($decoded->tipo != 'admin') {
+            $verifica = false;
+        }
+        // print_r($decoded);
+    } catch (\Throwable $th) {
+        //throw $th;
+        $verifica = false;
+        print_r($th);
+    }
+}
+if(!empty($_POST) && $verifica == true)
+{
+    // echo "POST con datos <br>";
+    if(isset($_POST['producto'])&&isset($_POST['marca'])&&isset($_POST['precio'])&&isset($_POST['stock'])&&isset($_FILES['foto']))
+    {
+        // echo "datos OK <br>";
+        // var_dump($_FILES);
+        $producto = $_POST['producto'];
+        $marca = $_POST['marca'];
+        $precio = $_POST['precio'];
+        $stock = $_POST['stock'];
+        $foto = $_FILES['foto'];
+        //instancio producto
+        //respuesta
+        // $respuesta = $cliente->guardarUsuario($archivo);
+        // echo "$respuesta";
+            //obtengo path foto y guardo
+            //parametros para guardar foto
+            $fotoName = $foto['name'];
+            $path = $foto['tmp_name'];
+            $destino = './imagenes/';
+            $destiny = funciones::GuardaTemp($path, $destino, $fotoName, $producto . $marca); 
+            if($destino != $destiny)
+            {
+                $producto = new producto($producto, $marca, $precio, $stock, $destiny);
+                $response = $producto->guardarProducto($archivo);
+                echo $response;
+            }
+            else
+            {
+                // $response = new Lresponse();
+                $response->status = 'unsucces';
+                $response->data = 'error al subir imagen de producto';
+                echo $response;
+            }
+    }
+}
+else
+{
+    // $response = new Lresponse();
+    $response->status = 'unsucces';
+    $response->data = 'error: Usuario no permitido o datos vacíos';
+    echo json_encode($response);
+}
+});
+
+$app->post('/ventas', function (Request $request, Response $response, array $args) {
+    $archivo = './files/producto.json';
+    $verifica = true;
+    // $response = new Lresponse();
+    //obtengo token
+    $headers = getallheaders();
+    //verifico token
+    $token = $headers['token'];
+    // echo $token;
+    if ($token == '') {
+        $response->status = 'unsucces';
+        $response->data = 'error , token incorrecto';
+        echo json_encode($response);
+    }
+    else{
+        try {
+            //code...
+            $decoded = JWT::decode($token, $key, array('HS256'));
+            $decoded->tipo = 'user';
+            if ($decoded->tipo != 'user') {
+                $verifica = false;
+                $response->data = 'error , tipo de usuario no permitido';
+                echo json_encode($response);
+            }
+            // echo "try decoded";
+        } catch (\Throwable $th) {
+            //throw $th;
+            $verifica = false;
+            $response->data = $th;
+            echo json_encode($response);
+        }
+    }
+    if(!empty($_POST) && $verifica == true)
+    {              
+        if(isset($_POST['id_producto'])&&isset($_POST['cantidad'])&&isset($_POST['usuario']))
+        {
+            // echo "datos OK <br>";
+            // var_dump($_FILES);
+            $idProd = $_POST['id_producto'];
+            $cantidad = $_POST['cantidad'];
+            $usuario = $_POST['usuario'];
+            $venta = new venta($idProd, $cantidad, $usuario);
+            //verifico stock producto
+            $respuesta = funciones::BuscaEnArrayxID($archivo, $idProd);
+            // print_r(jsosn_encode($respuesta));
+            if ($respuesta->status == 'succes') {
+                $producto = $respuesta->data;
+                // echo "<br> estoy por guardar la venta <br>";
+                // print_r(json_encode($producto));
+                if ($producto->stock > $cantidad) {
+                    $archivo = './files/ventas.json';
+                    //guardo venta
+                    $response = $venta->guardarVenta($archivo, $producto);
+                    print_r($response);
+                }
+                else
+                {
+                    //devuelvo JSEND informando error de stock
+                    $response->data = "no hay stock de producto";
+                    echo json_encode($response);    
+                }
+            }
+            // echo "<br>";
+            // print_r(json_encode($listaProd[0]));
+            // // echo "$respuesta"; 
+            //     if($destino != $destiny)
+            //     {
+            //         $producto = new producto($producto, $marca, $precio, $stock, $destiny);
+            //         $response = $producto->guardarProducto($archivo);
+            //         echo $response;
+            //     }
+        }
+    }
+});
